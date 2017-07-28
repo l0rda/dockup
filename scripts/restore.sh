@@ -1,13 +1,23 @@
 #!/bin/bash
 
+# build arguments for s3cmd
+if [ "$S3_SSL" == "true" ]; then
+        S3_ARGS="--host=$S3_HOST --host-bucket=$S3_HOST_BUCKET --region=$AWS_DEFAULT_REGION"
+elif [ "$S3_SSL" == "false" ]; then
+        S3_ARGS="--host=$S3_HOST --host-bucket=$S3_HOST_BUCKET --region=$AWS_DEFAULT_REGION --no-ssl"
+else
+        echo "ERROR: ENV S3_SSL is garbage."
+        exit 1
+fi
+
 if [ ! -n "${LAST_BACKUP}" ]; then
   # Find last backup file
-  : ${LAST_BACKUP:=$(aws s3 --region $AWS_DEFAULT_REGION ls s3://$S3_BUCKET_NAME/$S3_FOLDER | awk -F " " '{print $4}' | grep ^$BACKUP_NAME | sort -r | head -n1)}
+  LAST_BACKUP=$(basename -a $(s3cmd $S3_ARGS ls s3://$S3_BUCKET_NAME/$S3_FOLDER | awk -F " " '{print $4}') | grep ^$BACKUP_NAME | sort -r | head -n1)
 fi
 
 # Download backup from S3
 echo "Retrieving backup archive $LAST_BACKUP..."
-aws s3 --region $AWS_DEFAULT_REGION cp s3://$S3_BUCKET_NAME/$S3_FOLDER$LAST_BACKUP $LAST_BACKUP || (echo "Failed to download tarball from S3"; exit)
+s3cmd $S3_ARGS get s3://$S3_BUCKET_NAME/$S3_FOLDER$LAST_BACKUP $LAST_BACKUP || (echo "Failed to download tarball from S3"; exit)
 
 # Check if tarball is encrypted
 if [ ${LAST_BACKUP: -4} == ".gpg" ]; then

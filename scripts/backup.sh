@@ -3,6 +3,16 @@ export PATH=$PATH:/usr/bin:/usr/local/bin:/bin
 
 source ./notifications.sh
 
+# build arguments for s3cmd
+if [ "$S3_SSL" == "true" ]; then
+	S3_ARGS="--host=$S3_HOST --host-bucket=$S3_HOST_BUCKET --region=$AWS_DEFAULT_REGION"
+elif [ "$S3_SSL" == "false" ]; then
+	S3_ARGS="--host=$S3_HOST --host-bucket=$S3_HOST_BUCKET --region=$AWS_DEFAULT_REGION --no-ssl"
+else
+	notifyFailure "ENV S3_SSL is garbage."
+	exit 1
+fi
+
 function cleanup {
   # If a post-backup command is defined (eg: for cleanup)
   if [ -n "$AFTER_BACKUP_CMD" ]; then
@@ -105,18 +115,18 @@ fi
 backup_size=$(du -h "$tarball" | tr '\t' '\n' | grep -v "$tarball")
 
 # Create bucket, if it doesn't already exist (only try if listing is successful - access may be denied)
-BUCKET_LS=$(aws s3 --region $AWS_DEFAULT_REGION ls)
+BUCKET_LS=$(s3cmd $S3_ARGS ls)
 if [ $? -eq 0 ]; then
   BUCKET_EXIST=$(echo $BUCKET_LS | grep $S3_BUCKET_NAME | wc -l)
   if [ $BUCKET_EXIST -eq 0 ];
   then
-    aws s3 --region $AWS_DEFAULT_REGION mb s3://$S3_BUCKET_NAME
+    s3cmd $S3_ARGS mb s3://$S3_BUCKET_NAME
   fi
 fi
 
 # Upload the backup to S3 with timestamp
 echo "Uploading the archive to S3..."
-time aws s3 --region $AWS_DEFAULT_REGION cp $tarball "s3://${S3_BUCKET_NAME}/${S3_FOLDER}${tarball}"
+time s3cmd $S3_ARGS put $tarball "s3://${S3_BUCKET_NAME}/${S3_FOLDER}${tarball}"
 rc=$?
 
 # Clean up
