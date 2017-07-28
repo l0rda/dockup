@@ -8,7 +8,7 @@
 # Doesn't use encryption
 
 # build dockup image
-docker build -t wetransform/dockup:local .
+docker build -t unfinishedsentenc/dockup:local .
 
 # create data container
 docker rm -v dockup-data-test
@@ -27,4 +27,4 @@ exec docker run --rm -it \
   -e PATHS_TO_BACKUP=auto \
   -e CRON_TIME="* * * * *" \
   --volumes-from dockup-data-test \
-  --name dockup-run-test wetransform/dockup:local
+  --name dockup-run-test unfinishedsentenc/dockup:local

@@ -21,7 +21,7 @@ if [ "$1" == "--no-encryption" ]; then
 fi
 
 # build dockup image
-docker build -t wetransform/dockup:local .
+docker build -t unfinishedsentenc/dockup:local .
 
 # create data container
 docker rm -v dockup-data-test
@@ -46,7 +46,7 @@ docker run --rm \
   -e GPG_KEYRING=/$GPG_KEYNAME.pub \
   --volumes-from dockup-data-test \
   -v $(pwd)/$GPG_KEYNAME.pub:/$GPG_KEYNAME.pub \
-  --name dockup-run-test wetransform/dockup:local
+  --name dockup-run-test unfinishedsentenc/dockup:local
 rc=$?; if [ $rc -ne 0 ]; then
   echo "ERROR: Error running backup"
   rm tmpBackup.txt
@@ -69,7 +69,7 @@ docker run --rm \
   --volumes-from dockup-data-test \
   -v $(pwd)/$GPG_KEYNAME.pub:/$GPG_KEYNAME.pub \
   -v $(pwd)/$GPG_KEYNAME.sec:/$GPG_KEYNAME.sec \
-  --name dockup-run-test wetransform/dockup:local
+  --name dockup-run-test unfinishedsentenc/dockup:local
 rc=$?; if [ $rc -ne 0 ]; then
   echo "ERROR: Error running restore"
   rm tmpBackup.txt
