@@ -9,7 +9,7 @@ if [ "$S3_SSL" == "true" ]; then
 elif [ "$S3_SSL" == "false" ]; then
 	S3_ARGS="--host=$S3_HOST --host-bucket=$S3_HOST_BUCKET --region=$AWS_DEFAULT_REGION --no-ssl"
 else
-	notifyFailure "ENV S3_SSL is garbage."
+	echo "ENV S3_SSL is garbage."
 	exit 1
 fi
 
