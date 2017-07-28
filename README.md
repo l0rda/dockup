@@ -1,15 +1,11 @@
 
 # Dockup
 
-[![Docker Hub Badge](https://img.shields.io/badge/Docker-Hub%20Hosted-blue.svg)](https://hub.docker.com/r/wetransform/dockup/)
-
 Docker image to backup your Docker container volumes
 
+This is a fork from [wetransform-os/dockup](https://github.com/wetransform-os/dockup) that uses `s3cmd` instead of `awscli`.
+
 Why the name? Docker + Backup = Dockup
-
-Instead of backing up volumes you can also run tasks that provide the files to be backed up. See the following projects as examples on building on Dockup for that purpose:
-
-* [wetransform-os/dockup-mongo](https://github.com/wetransform-os/dockup-mongo) - Uses `mongodump` and `mongorestore` to backup and restore a MongoDB instance
 
 # Usage
 
@@ -36,7 +32,7 @@ Launch `dockup` container with the following flags:
 $ docker run --rm \
 --env-file env.txt \
 --volumes-from mysql \
---name dockup wetransform/dockup:latest
+--name dockup unfinishedsentenc/dockup:latest
 ```
 
 The contents of `env.txt` being something like:
@@ -45,17 +41,24 @@ The contents of `env.txt` being something like:
 AWS_ACCESS_KEY_ID=<key_here>
 AWS_SECRET_ACCESS_KEY=<secret_here>
 AWS_DEFAULT_REGION=us-east-1
+S3_HOST=s3.amazonaws.com
+S3_HOST_BUCKET=%(bucket)s.s3.amazonaws.com
+S3_SSL=true
 BACKUP_NAME=mysql
 PATHS_TO_BACKUP=/etc/mysql /var/lib/mysql
-S3_BUCKET_NAME=docker-backups.example.com
+S3_BUCKET_NAME=container-backup
 S3_FOLDER=mybackups/
 RESTORE=false
 ```
 
-`dockup` will use your AWS credentials to create a new bucket with name as per the environment variable `S3_BUCKET_NAME`, or if not defined, using the default name `docker-backups.example.com`. The paths in `PATHS_TO_BACKUP` will be tarballed, gzipped, time-stamped and uploaded to the S3 bucket.
+`dockup` will use your AWS credentials to create a new bucket with name as per the environment variable `S3_BUCKET_NAME`, or if not defined, using the default name `container-backup`. The paths in `PATHS_TO_BACKUP` will be tarballed, gzipped, time-stamped and uploaded to the S3 bucket.
 
 To place backups in a specific folder in the S3 bucket, provide it in the `S3_FOLDER` variable.
 It should either be empty or hold a path and end with a slash.
+
+To use a custom S3 endpoint (like RGW or Minio) you can supply s3cmd options via
+the environment variables `S3_HOST` for `--host`, `S3_HOST_BUCKET` for
+`--host-bucket` and `S3_SSL=false` for `--no-ssl`. They default to AWS.
 
 For more complex backup tasks as dumping a database, you can optionally define the environment variables `BEFORE_BACKUP_CMD` and `AFTER_BACKUP_CMD`.
 
@@ -132,32 +135,3 @@ For that purpose, copy `test-env.txt.sample` to `test-env.txt` and adapt the var
 Optionally generate a GPG key for testing encryption/decryption using `./gen-test-key.sh`.
 It will be automatically used when you execute `./test-backup.sh`.
 If you want to test w/o encryption after generating the key, rn `./test-backup.sh --no-encryption`.
-
-
-## A note on Buckets
-
-> [Bucket naming guidelines](http://docs.aws.amazon.com/cli/latest/userguide/using-s3-commands.html):
-> "Bucket names must be unique and should be DNS compliant. Bucket names can contain lowercase letters, numbers, hyphens and periods. Bucket names can only start and end with a letter or number, and cannot contain a period next to a hyphen or another period."
-
-These rules are enforced in some regions.
-
-
-[AWS S3 Regions](http://docs.aws.amazon.com/general/latest/gr/rande.html#s3_region)
-
-| Region name               | Region         |
-| ------------------------- | -------------- |
-| US Standard               | us-east-1      |
-| US West (Oregon)          | us-west-2      |
-| US West (N. California)   | us-west-1      |
-| EU (Ireland)              | eu-west-1      |
-| EU (Frankfurt)            | eu-central-1   |
-| Asia Pacific (Singapore)  | ap-southeast-1 |
-| Asia Pacific (Sydney)     | ap-southeast-2 |
-| Asia Pacific (Tokyo)      | ap-northeast-1 |
-| South America (Sao Paulo) | sa-east-1      |
-
-
-To perform a restore launch the container with the RESTORE variable set to true
-
-
-![](http://s.tutum.co.s3.amazonaws.com/support/images/dockup-readme.png)
