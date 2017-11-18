@@ -1,7 +1,7 @@
 FROM ubuntu:xenial
 MAINTAINER Marius Rennmann <marius@dontmind.me>
 
-RUN apt-get update && apt-get install -y s3cmd
+RUN apt-get update && apt-get install -y s3cmd cron
 
 ADD /scripts /dockup/
 RUN chmod 755 /dockup/*.sh
