@@ -1,10 +1,15 @@
 FROM ubuntu:xenial
-MAINTAINER Marius Rennmann <marius@dontmind.me>
+MAINTAINER K <l0rda@l0rda.biz>
 
-RUN apt-get update && apt-get install -y s3cmd cron
+RUN apt-get update && apt-get install -y s3cmd cron ssh tzdata
 
 ADD /scripts /dockup/
 RUN chmod 755 /dockup/*.sh
+
+ENV TZ 'UTC'
+
+ENV S3_BACKUP false
+ENV SCP_BACKUP false
 
 ENV S3_BUCKET_NAME container-backup
 ENV AWS_ACCESS_KEY_ID **DefineMe**
@@ -21,6 +26,13 @@ ENV NOTIFY_BACKUP_SUCCESS false
 ENV NOTIFY_BACKUP_FAILURE false
 ENV BACKUP_TAR_TRIES 5
 ENV BACKUP_TAR_RETRY_SLEEP 30
+ENV SSH_HOST rsync.example.com
+ENV SSH_USER user
+ENV SSH_PORT 22
+# you need to mount ssh private key file to /mnt/ssh.key
+#ENV SSH_PASSWORD ""
+ENV SSH_TARGET /path/where/store/backup
+ENV VERBOSE false
 
 WORKDIR /dockup
 CMD ["./run.sh"]
