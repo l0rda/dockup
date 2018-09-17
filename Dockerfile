@@ -1,7 +1,7 @@
 FROM ubuntu:xenial
 MAINTAINER K <l0rda@l0rda.biz>
 
-RUN apt-get update && apt-get install -y s3cmd cron ssh tzdata
+RUN apt-get update && apt-get install -y s3cmd cron ssh tzdata rsync
 
 ADD /scripts /dockup/
 RUN chmod 755 /dockup/*.sh
@@ -10,6 +10,8 @@ ENV TZ 'UTC'
 
 ENV S3_BACKUP false
 ENV SCP_BACKUP false
+ENV RSYNC_BACKUP false
+# rsync run over ssh and use same vars
 
 ENV S3_BUCKET_NAME container-backup
 ENV AWS_ACCESS_KEY_ID **DefineMe**

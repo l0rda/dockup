@@ -165,6 +165,28 @@ if [ "$SCP_BACKUP" == "true" ]; then
 	$tarball $SSH_USER@$SSH_HOST:$SSH_TARGET/$tarball
   rc=$?
 fi
+
+if [ "$RSYNC_BACKUP" == "true" ]; then
+  echo "Uploading the archive via rsync..."
+  # store ssh key
+  # note, you need to mount -v "./volumes/.ssh/id_ed25519_backups:/mnt/ssh.key"
+  if [ ! -f /mnt/ssh.key ]; then
+    # early exit
+    notifyFailure "Error: ssh key not found"
+    rm $tarball
+    cleanup
+    exit 1;
+  fi
+  SSH_KEYFILE_TMP="$(mktemp /tmp/ssh.XXXXXX)"
+  cp /mnt/ssh.key ${SSH_KEYFILE_TMP}
+  chmod 600 ${SSH_KEYFILE_TMP}
+
+  time rsync -av \
+    -e "ssh -p ${SSH_PORT:-22} -i ${SSH_KEYFILE_TMP} -o ConnectTimeout=${SSH_CONNECT_TIMEOUT:-5} -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no" \
+    $tarball $SSH_USER@$SSH_HOST::$SSH_TARGET/$tarball
+  rc=$?
+fi
+
 # Clean up
 rm $tarball
 rm ${SSH_KEYFILE_TMP}
