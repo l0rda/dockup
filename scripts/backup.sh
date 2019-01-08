@@ -114,32 +114,91 @@ fi
 
 backup_size=$(du -h "$tarball" | tr '\t' '\n' | grep -v "$tarball")
 
-# Create bucket, if it doesn't already exist (only try if listing is successful - access may be denied)
-BUCKET_LS=$(s3cmd $S3_ARGS ls)
-if [ $? -eq 0 ]; then
-  BUCKET_EXIST=$(echo $BUCKET_LS | grep $S3_BUCKET_NAME | wc -l)
-  if [ $BUCKET_EXIST -eq 0 ];
-  then
-    s3cmd $S3_ARGS mb s3://$S3_BUCKET_NAME
+# Upload the backup to S3 with timestamp
+if [ "$S3_BACKUP" == "true" ]; then
+  # Create bucket, if it doesn't already exist (only try if listing is successful - access may be denied)
+  BUCKET_LS=$(s3cmd $S3_ARGS ls)
+  if [ $? -eq 0 ]; then
+    BUCKET_EXIST=$(echo $BUCKET_LS | grep $S3_BUCKET_NAME | wc -l)
+    if [ $BUCKET_EXIST -eq 0 ];
+    then
+      s3cmd $S3_ARGS mb s3://$S3_BUCKET_NAME
+    fi
   fi
+
+  echo "Uploading the archive to S3..."
+  time s3cmd $S3_ARGS put $tarball "s3://${S3_BUCKET_NAME}/${S3_FOLDER}${tarball}"
+  rc=$?
 fi
 
-# Upload the backup to S3 with timestamp
-echo "Uploading the archive to S3..."
-time s3cmd $S3_ARGS put $tarball "s3://${S3_BUCKET_NAME}/${S3_FOLDER}${tarball}"
-rc=$?
+
+# ssh verbosity level
+SSH_LOGGING_LEVEL="-q"
+if [[ -n ${VERBOSE:-} ]]; then
+    SSH_LOGGING_LEVEL="-v"
+fi
+
+SSH_KEYFILE_TMP="/tmp/xxx"
+
+if [ "$SCP_BACKUP" == "true" ]; then
+  echo "Uploading the archive via SCP..."
+  # store ssh key
+  # note, you need to mount -v "./volumes/.ssh/id_ed25519_backups:/mnt/dockup/ssh.key"
+  if [ ! -f /mnt/dockup/ssh.key ]; then
+    # early exit
+    notifyFailure "Error: ssh key not found"
+    rm $tarball
+    cleanup
+    exit 1;
+  fi
+  SSH_KEYFILE_TMP="$(mktemp /tmp/ssh.XXXXXX)"
+  cp /mnt/dockup/ssh.key ${SSH_KEYFILE_TMP}
+  chmod 600 ${SSH_KEYFILE_TMP}
+
+  time scp \
+	${SSH_LOGGING_LEVEL} \
+	-i ${SSH_KEYFILE_TMP} \
+	-o ConnectTimeout=${SSH_CONNECT_TIMEOUT:-5} \
+	-o UserKnownHostsFile=/dev/null \
+	-o StrictHostKeyChecking=no \
+	-P ${SSH_PORT:-22} \
+	$tarball $SSH_USER@$SSH_HOST:$SSH_TARGET/$tarball
+  rc=$?
+fi
+
+if [ "$RSYNC_BACKUP" == "true" ]; then
+  echo "Uploading the archive via rsync..."
+  # store ssh key
+  # note, you need to mount -v "./volumes/.ssh/id_ed25519_backups:/mnt/dockup/ssh.key"
+  if [ ! -f /mnt/dockup/ssh.key ]; then
+    # early exit
+    notifyFailure "Error: ssh key not found"
+    rm $tarball
+    cleanup
+    exit 1;
+  fi
+  SSH_KEYFILE_TMP="$(mktemp /tmp/ssh.XXXXXX)"
+  cp /mnt/dockup/ssh.key ${SSH_KEYFILE_TMP}
+  chmod 600 ${SSH_KEYFILE_TMP}
+
+  time rsync -av \
+    -e "ssh -p ${SSH_PORT:-22} -i ${SSH_KEYFILE_TMP} -o ConnectTimeout=${SSH_CONNECT_TIMEOUT:-5} -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no" \
+    $tarball $SSH_USER@$SSH_HOST::$SSH_TARGET/$tarball
+  rc=$?
+fi
 
 # Clean up
 rm $tarball
+rm ${SSH_KEYFILE_TMP}
 cleanup
 
 end_time=`date +%Y-%m-%d\\ %H:%M:%S\\ %Z`
 backup_duration=`date -u -d @"$SECONDS" +'%-Mm %-Ss'`
 if [ $rc -ne 0 ]; then
-  notifyFailure "Error uploading backup to S3."
-  echo -e "[$end_time] Backup failed\n\n"
+  notifyFailure "Error uploading backup."
+  echo -e "[$end_time] Backup failed.\n\n"
   exit $rc
 else
   notifySuccess
-  echo -e "[$end_time] Archive successfully uploaded to S3\n\n"
+  echo -e "[$end_time] Archive successfully uploaded.\n\n"
 fi
